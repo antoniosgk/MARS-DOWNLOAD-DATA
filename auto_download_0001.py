@@ -18,22 +18,25 @@ os.environ["ECMWF_API_KEY"] = "a04ef06e5c69ff77ebf5ce0294a5e011"
 os.environ["ECMWF_API_EMAIL"] = "zerefos@geol.uoa.gr"
 server=ECMWFService("mars")
 print("✅ Connected to ECMWF API")
-DOWNLOAD_ROOT = Path("/home/agkiokas/MARS/data/")  # folder root
+DOWNLOAD_ROOT = Path("/mnt/store02/agkiokas/data/")  # folder root
 REGNAME = "GLOBE"
 EXPVER = "0001"  #or icki
 TYPE_ = "fc"   #or reanalysis
 LEVTYPE = "ml"  # sfc / pl / ml / etc.#often ml
 
 # MARS keys
-CLASS_ = "mc"  #mc or rd
+CLASS_ = "mc"  #mc or rd for icki
 STREAM = "oper"
-PARAM = "210121"   #210.121/210.122/210.123/210.203 #no2/so2/co/o3
+PARAM = "210121/210122/210123/210203"   #210.121/210.122/210.123/210.203 #no2/so2/co/o3
 GRID = "0.4/0.4"
-AREA = "20/0/10/5"  # N/W/S/E 90/-180/-90/180 for the whole globe
+AREA = "90/-180/-90/180"  # N/W/S/E 90/-180/-90/180 for the whole globe
 FORMAT_ = "netcdf"   # "netcdf" or "grib"
 
 # Optional vertical levels (ONLY if levtype supports it; set None for sfc)
-LEVELIST: Optional[str] = "110/to/137"  # e.g. "110/to/137" for pl/ml if applicable or None
+LEVELIST: Optional[str] = "113/to/137"  # e.g. "110/to/137" for pl/ml if applicable or None
+
+DAY_START_HOUR = 3   # 03:00
+DAY_END_HOUR   = 24  # 24:00 (i.e., next day's 00:00)
 
 # Forecast selection
 INIT_TIME_UTC = "00:00:00"
@@ -46,8 +49,11 @@ KEEP_DAY_INDICES = [0, 2, 4]  # keep day0, day2, day4 (skip day1 and day3)
 
 #HOW MANY DAYS BACK IN TIME YOU WANT TO DOWNLOAD?0 MEANS TODAY for RUN_DATE_OFFSET_DAYS
 # Choose ONE:
-RUN_DATE_YYYYMMDD: Optional[str] = "20260110"  # e.g. "20260114" (if set, overrides offset)
+RUN_DATE_YYYYMMDD: Optional[str] = "20260101"  # e.g. "20260114" (if set, overrides offset)
 RUN_DATE_OFFSET_DAYS = 4                  # used only if RUN_DATE_YYYYMMDD is None,
+
+RUN_RANGE_START_YYYYMMDD: Optional[str] = None  # e.g. "20260101"
+RUN_RANGE_END_YYYYMMDD: Optional[str] = None    # e.g. "20260323"
 # Logging
 LOG_NAME = "CAMS_mars_fc.log"
 
@@ -89,6 +95,17 @@ def resolve_run_date_yyyymmdd() -> str:
         return s
     return yyyymmdd_utc(RUN_DATE_OFFSET_DAYS)
 
+def iter_run_dates(start_yyyymmdd: str, end_yyyymmdd: str):
+    start = dt.datetime.strptime(start_yyyymmdd, "%Y%m%d").date()
+    end   = dt.datetime.strptime(end_yyyymmdd, "%Y%m%d").date()
+    if end < start:
+        raise ValueError("RUN_RANGE_END_YYYYMMDD must be >= RUN_RANGE_START_YYYYMMDD")
+
+    d = start
+    while d <= end:
+        yield d.strftime("%Y%m%d")
+        d += dt.timedelta(days=1)
+
 def yyyymmdd_utc(offset_days: int = 0) -> str:
     d = (now_utc().date() - dt.timedelta(days=offset_days))
     return d.strftime("%Y%m%d")
@@ -123,11 +140,14 @@ def fmt_dmy(d: dt.datetime) -> str:
 
 def day_window_hours(day_index: int) -> Tuple[int, int]:
     """
-    For a given day index, return (start_hour, end_hour) inclusive,
-    with steps 00..21 (3-hourly) => end = start + 21.
+    For a given day index, return (start_hour, end_hour) inclusive.
+    Example with DAY_START_HOUR=3 and DAY_END_HOUR=24:
+      day 0 -> 3..24
+      day 2 -> 51..72
+      day 4 -> 99..120
     """
-    start = day_index * 24
-    end = start + 21
+    start = day_index * 24 + DAY_START_HOUR
+    end   = day_index * 24 + DAY_END_HOUR
     if end > MAX_FC_HOURS:
         raise ValueError(f"Day window exceeds MAX_FC_HOURS: day={day_index}, end={end}")
     return start, end
@@ -264,45 +284,50 @@ def main() -> int:
 
     server = ECMWFService("mars")
 
-    run_date = resolve_run_date_yyyymmdd()
-    init_dt = init_datetime_utc(run_date, INIT_TIME_UTC)
-    
-
-    run_dir = build_run_dir(base_dir, run_date, INIT_TIME_UTC)
-    ensure_dir(run_dir)
+    # Decide which run_date(s) to process
+    if RUN_RANGE_START_YYYYMMDD and RUN_RANGE_END_YYYYMMDD:
+        run_dates = iter_run_dates(RUN_RANGE_START_YYYYMMDD, RUN_RANGE_END_YYYYMMDD)
+    else:
+        run_dates = [resolve_run_date_yyyymmdd()]
 
     failures: List[str] = []
 
-    for day_idx in KEEP_DAY_INDICES:
-        h0, h1 = day_window_hours(day_idx)
-        step_str, ntime = steps_as_list(h0, h1, STEP_HOURS)
+    for run_date in run_dates:
+        init_dt = init_datetime_utc(run_date, INIT_TIME_UTC)
 
-        label = label_init_to_valid(init_dt, h0)
-        out_name = f"{label}.nc"
-        out_path = run_dir / out_name
+        run_dir = build_run_dir(base_dir, run_date, INIT_TIME_UTC)
+        ensure_dir(run_dir)
 
-        if nonempty(out_path):
-            logger.info(f"Skip existing: {out_name}")
-            continue
+        for day_idx in KEEP_DAY_INDICES:
+            h0, h1 = day_window_hours(day_idx)
+            step_str, ntime = steps_as_list(h0, h1, STEP_HOURS)
 
-        req = build_request(run_date, INIT_TIME_UTC, step_str, logger)
+            label = label_init_to_valid(init_dt, h0)
+            out_name = f"{label}.nc"
+            out_path = run_dir / out_name
 
-        try:
-            mars_execute(server, req, out_path, ntime=ntime, logger=logger)
-        except Exception as e:
-            logger.error(f"FAILED day_idx={day_idx} ({label}): {e}")
-            failures.append(f"day{day_idx}:{label}")
+            if nonempty(out_path):
+                logger.info(f"Skip existing: {run_date} | {out_name}")
+                continue
 
-    script_end = now_utc()
-    logger.info(f"Script end (UTC): {script_end.isoformat(timespec='seconds')}")
-    logger.info(f"Elapsed: {script_end - script_start}")
+            req = build_request(run_date, INIT_TIME_UTC, step_str, logger)
 
-    if failures:
-        logger.warning(f"Some downloads failed: {', '.join(failures)}")
-        return 2
+            try:
+                mars_execute(server, req, out_path, ntime=ntime, logger=logger)
+            except Exception as e:
+                logger.error(f"FAILED run_date={run_date} day_idx={day_idx} ({label}): {e}")
+                failures.append(f"{run_date}:day{day_idx}:{label}")
 
-    logger.info("All requested day windows downloaded successfully.")
-    return 0
+        script_end = now_utc()
+        logger.info(f"Script end (UTC): {script_end.isoformat(timespec='seconds')}")
+        logger.info(f"Elapsed: {script_end - script_start}")
+
+        if failures:
+            logger.warning(f"Some downloads failed: {', '.join(failures)}")
+            return 2
+
+        logger.info("All requested day windows downloaded successfully.")
+        return 0
 
 
 if __name__ == "__main__":
