@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #%%
 from __future__ import annotations
 
@@ -20,12 +19,12 @@ server=ECMWFService("mars")
 print("✅ Connected to ECMWF API")
 DOWNLOAD_ROOT = Path("/mnt/store02/agkiokas/data/")  # folder root
 REGNAME = "GLOBE"
-EXPVER = "0001"  #or icki
+EXPVER = "icki"  #or icki or 0001
 TYPE_ = "fc"   #or reanalysis
 LEVTYPE = "ml"  # sfc / pl / ml / etc.#often ml
 
 # MARS keys
-CLASS_ = "mc"  #mc or rd for icki
+CLASS_ = "rd"  #mc(0001) or rd for icki
 STREAM = "oper"
 PARAM = "210121/210122/210123/210203"   #210.121/210.122/210.123/210.203 #no2/so2/co/o3
 GRID = "0.4/0.4"
@@ -52,8 +51,8 @@ KEEP_DAY_INDICES = [0, 2, 4]  # keep day0, day2, day4 (skip day1 and day3)
 RUN_DATE_YYYYMMDD: Optional[str] = None  # e.g. "20260114" (if set, overrides offset)
 RUN_DATE_OFFSET_DAYS = None                  # used only if RUN_DATE_YYYYMMDD is None
 #if you choose None for both of the above,then it uses range!!
-RUN_RANGE_START_YYYYMMDD: Optional[str] = "20260321"  # e.g. "20260101"
-RUN_RANGE_END_YYYYMMDD: Optional[str] = "20260329"    # e.g. "20260323"
+RUN_RANGE_START_YYYYMMDD: Optional[str] = "20260101"  # e.g. "20260101"
+RUN_RANGE_END_YYYYMMDD: Optional[str] = "20260328"    # e.g. "20260323"
 # Logging
 LOG_NAME = "CAMS_mars_fc.log"
 
@@ -332,4 +331,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-# %%

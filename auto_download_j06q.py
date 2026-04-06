@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 #%%
 from __future__ import annotations
 
@@ -9,31 +9,28 @@ import sys
 import time
 from pathlib import Path
 from typing import Dict, Tuple, List, Optional
-from ecmwfapi import *
-from ecmwfapi import ECMWFDataServer,ECMWFService
+#from ecmwfapi import *
+from ecmwfapi import ECMWFService
 import math
 #KEYS TO ACCESS THE DATA
-os.environ["ECMWF_API_URL"] = "https://api.ecmwf.int/v1"
-os.environ["ECMWF_API_KEY"] = "a04ef06e5c69ff77ebf5ce0294a5e011"
-os.environ["ECMWF_API_EMAIL"] = "zerefos@geol.uoa.gr"
 server=ECMWFService("mars")
 print("✅ Connected to ECMWF API")
 DOWNLOAD_ROOT = Path("/mnt/store02/agkiokas/data/")  # folder root
 REGNAME = "GLOBE"
-EXPVER = "0001"  #or icki
-TYPE_ = "fc"   #or reanalysis
+EXPVER = "j06q"  #or icki
+TYPE_ = "fc"   #fc for forecast or reanalysis
 LEVTYPE = "ml"  # sfc / pl / ml / etc.#often ml
 
 # MARS keys
-CLASS_ = "mc"  #mc or rd for icki
+CLASS_ = "rd"  #rd for j06r
 STREAM = "oper"
-PARAM = "210121/210122/210123/210203"   #210.121/210.122/210.123/210.203 #no2/so2/co/o3
+PARAM = "210123/210203"   #210.121/210.122/210.123/210.203 #no2/so2/co/o3
 GRID = "0.4/0.4"
 AREA = "90/-180/-90/180"  # N/W/S/E 90/-180/-90/180 for the whole globe
 FORMAT_ = "netcdf"   # "netcdf" or "grib"
 
 # Optional vertical levels (ONLY if levtype supports it; set None for sfc)
-LEVELIST: Optional[str] = "113/to/137"  # e.g. "113/to/137" for pl/ml if applicable or None
+LEVELIST: Optional[str] = "46/to/60"  # e.g. "113/to/137" for pl/ml if applicable or None
 
 DAY_START_HOUR = 3   # 03:00
 DAY_END_HOUR   = 24  # 24:00 (i.e., next day's 00:00)
@@ -41,21 +38,21 @@ DAY_END_HOUR   = 24  # 24:00 (i.e., next day's 00:00)
 # Forecast selection
 INIT_TIME_UTC = "00:00:00"
 STEP_HOURS = 3
-MAX_FC_HOURS = 120
+MAX_FC_HOURS = 24
 
 # “Days” are 0-indexed here:
 # day 0 = init date (first day), day 1 = next day, etc.
-KEEP_DAY_INDICES = [0, 2, 4]  # keep day0, day2, day4 (skip day1 and day3)
+KEEP_DAY_INDICES = [0]  # keep day0
 
 #HOW MANY DAYS BACK IN TIME YOU WANT TO DOWNLOAD?0 MEANS TODAY for RUN_DATE_OFFSET_DAYS
 # Choose ONE:
-RUN_DATE_YYYYMMDD: Optional[str] = None  # e.g. "20260114" (if set, overrides offset)
+RUN_DATE_YYYYMMDD: Optional[str] = None # e.g. "20260114" (if set, overrides offset)
 RUN_DATE_OFFSET_DAYS = None                  # used only if RUN_DATE_YYYYMMDD is None
 #if you choose None for both of the above,then it uses range!!
-RUN_RANGE_START_YYYYMMDD: Optional[str] = "20260321"  # e.g. "20260101"
-RUN_RANGE_END_YYYYMMDD: Optional[str] = "20260329"    # e.g. "20260323"
+RUN_RANGE_START_YYYYMMDD: Optional[str] = "20260101"  # e.g. "20260101"
+RUN_RANGE_END_YYYYMMDD: Optional[str] = "20260228"    # e.g. "20260323"
 # Logging
-LOG_NAME = "CAMS_mars_fc.log"
+LOG_NAME = "CAMS_mars_fc_j06q.log"
 
 # Output validation (prevents keeping tiny/invalid/error files)
 ENFORCE_VALIDATION = False

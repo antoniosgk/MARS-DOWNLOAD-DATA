@@ -27,7 +27,7 @@ LEVTYPE = "sfc"  # sfc / pl / ml / etc.#often ml
 # MARS keys
 CLASS_ = "rd"  #mc for expver 0001 or rd for icki
 STREAM = "oper"
-PARAM = "210121" #"210121/210122" 
+PARAM = "210121/210122/210123/210203" #"210121/210122" 
 GRID = "0.4/0.4"
 AREA = "10/-20/-10/20"  # N/W/S/E
 FORMAT_ = "netcdf"   # "netcdf" or "grib"
