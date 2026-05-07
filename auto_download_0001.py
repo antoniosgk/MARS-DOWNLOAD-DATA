@@ -52,8 +52,8 @@ KEEP_DAY_INDICES = [0, 2, 4]  # keep day0, day2, day4 (skip day1 and day3)
 RUN_DATE_YYYYMMDD: Optional[str] = None  # e.g. "20260114" (if set, overrides offset)
 RUN_DATE_OFFSET_DAYS = None                  # used only if RUN_DATE_YYYYMMDD is None
 #if you choose None for both of the above,then it uses range!!
-RUN_RANGE_START_YYYYMMDD: Optional[str] = "20260321"  # e.g. "20260101"
-RUN_RANGE_END_YYYYMMDD: Optional[str] = "20260329"    # e.g. "20260323"
+RUN_RANGE_START_YYYYMMDD: Optional[str] = "20251211"  # e.g. "20260101"
+RUN_RANGE_END_YYYYMMDD: Optional[str] = "20251212"    # e.g. "20260323"
 # Logging
 LOG_NAME = "CAMS_mars_fc.log"
 
